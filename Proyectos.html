@@ -408,25 +408,74 @@ function fmtDate(d) {
   return dd && m && y ? `${dd}/${m}/${y}` : d;
 }
 
-function load() {
-  try {
-    // Try new key first
-    const s5 = localStorage.getItem('kb-v7');
-    if (s5) { const d = JSON.parse(s5); projects = d.projects; nextId = d.nextId || 100; return; }
-    // Migrate from v4 — user's edited data
-    const s4 = localStorage.getItem('kb-v6');
-    if (s4) {
-      const d = JSON.parse(s4);
-      // Add date:'' to each project that doesn't have it
-      projects = d.projects.map(p => ({date:'', assigned:'', director:'', ...p}));
-      nextId = d.nextId || 100;
-      save(); // persist under new key
-      return;
-    }
-  } catch(e){}
-  projects = DEFAULTS.map(p => ({...p}));
+const PROJECT_COLLECTION = 'projects';
+
+function projectCollectionRef() {
+  return collection(db, PROJECT_COLLECTION);
 }
-function save() { localStorage.setItem('kb-v7', JSON.stringify({projects, nextId})); }
+
+function normalizeProject(project) {
+  return {
+    id: Number(project.id),
+    client: project.client || '',
+    country: project.country || '',
+    title: project.title || '',
+    n: project.n || '',
+    col: project.col || 'backlog',
+    a: project.a || 'jp',
+    isnew: !!project.isnew,
+    need: project.need || '',
+    notes: project.notes || '',
+    date: project.date || '',
+    assigned: project.assigned || '',
+    director: project.director || ''
+  };
+}
+
+function refreshAllViews() {
+  renderKanban();
+  renderAnalysts();
+  renderGantt();
+  updateStats();
+}
+
+async function findProjectDocByInternalId(id) {
+  const snapshot = await getDocs(query(projectCollectionRef(), where('id', '==', Number(id))));
+  return snapshot.docs[0] || null;
+}
+
+async function load() {
+  const snapshot = await getDocs(projectCollectionRef());
+  projects = snapshot.docs
+    .map(docSnap => normalizeProject(docSnap.data()))
+    .sort((a, b) => a.id - b.id);
+  nextId = Math.max(100, ...projects.map(p => Number(p.id) || 0)) + 1;
+  refreshAllViews();
+}
+
+async function upsertProject(project) {
+  const payload = normalizeProject(project);
+  const existingDoc = await findProjectDocByInternalId(payload.id);
+  if (existingDoc) {
+    await updateDoc(existingDoc.ref, payload);
+    return;
+  }
+  await addDoc(projectCollectionRef(), payload);
+}
+
+async function updateProjectFields(id, fields) {
+  const existingDoc = await findProjectDocByInternalId(id);
+  if (!existingDoc) return;
+  await updateDoc(existingDoc.ref, fields);
+}
+
+async function deleteProjectByInternalId(id) {
+  const existingDoc = await findProjectDocByInternalId(id);
+  if (!existingDoc) return;
+  await deleteDoc(existingDoc.ref);
+}
+
+function save() {}
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 /* ── TABS ── */
@@ -495,11 +544,14 @@ function renderKanban() {
       <div class="col-body" id="body-${col.id}"></div>`;
     el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
     el.addEventListener('dragleave', e => { if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over'); });
-    el.addEventListener('drop', e => {
+    el.addEventListener('drop', async e => {
       e.preventDefault(); el.classList.remove('drag-over');
       if (dragId !== null) {
         const p = projects.find(x => x.id === dragId);
-        if (p) { p.col = col.id; p.isnew = false; save(); renderKanban(); }
+        if (p) {
+          await updateProjectFields(p.id, {col: col.id, isnew: false});
+          await load();
+        }
       }
     });
     board.appendChild(el);
@@ -573,7 +625,7 @@ function editCard(id) {
 }
 function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
 function closeBg(e) { if (e.target===document.getElementById('modal-bg')) closeModal(); }
-function saveCard() {
+async function saveCard() {
   const id      = document.getElementById('edit-id').value;
   const client  = document.getElementById('f-client').value.trim();
   const country = document.getElementById('f-country').value.trim();
@@ -589,18 +641,19 @@ function saveCard() {
   if (!client||!title) { document.getElementById('f-title').focus(); return; }
   if (id) {
     const p = projects.find(x => x.id===parseInt(id));
-    if (p) Object.assign(p, {client,country,title,n,a:analyst,col,need,notes,date,assigned,director});
+    if (p) await upsertProject({...p, client,country,title,n,a:analyst,col,need,notes,date,assigned,director});
   } else {
-    projects.push({id:nextId++,client,country,title,n,col,a:analyst,isnew:false,need,notes,date,assigned,director});
+    await upsertProject({id:nextId++,client,country,title,n,col,a:analyst,isnew:false,need,notes,date,assigned,director});
   }
-  save(); closeModal(); renderKanban();
-  if (document.getElementById('page-analistas').classList.contains('active')) renderAnalysts();
+  await load();
+  closeModal();
+  refreshAllViews();
 }
-function delCard(id) {
+async function delCard(id) {
   if (!confirm('¿Eliminar este proyecto?')) return;
-  projects = projects.filter(p => p.id!==id);
-  save(); renderKanban();
-  if (document.getElementById('page-analistas').classList.contains('active')) renderAnalysts();
+  await deleteProjectByInternalId(id);
+  await load();
+  refreshAllViews();
 }
 
 /* ── ANALYST TABLE ── */
@@ -650,18 +703,25 @@ function renderAnalysts() {
   updateStats();
 }
 
-function ce(el) {
+async function ce(el) {
   const p = projects.find(x => x.id===parseInt(el.dataset.id));
-  if (p) { p[el.dataset.f] = el.innerText.trim(); save(); renderKanban(); }
+  if (p) {
+    await updateProjectFields(p.id, {[el.dataset.f]: el.innerText.trim()});
+    await load();
+  }
 }
-function cse(id, field, val) {
+async function cse(id, field, val) {
   const p = projects.find(x => x.id===id);
-  if (p) { p[field]=val; save(); renderKanban(); }
+  if (p) {
+    await updateProjectFields(p.id, {[field]: val});
+    await load();
+  }
 }
-function addRow(analyst) {
-  const p = {id:nextId++,client:'',country:'',title:'Nuevo proyecto',n:'',col:'backlog',a:analyst,isnew:false,need:'',notes:'',date:'',assigned:''};
-  projects.push(p);
-  save(); renderAnalysts(); renderKanban();
+async function addRow(analyst) {
+  const p = {id:nextId++,client:'',country:'',title:'Nuevo proyecto',n:'',col:'backlog',a:analyst,isnew:false,need:'',notes:'',date:'',assigned:'',director:''};
+  await upsertProject(p);
+  await load();
+  refreshAllViews();
   setTimeout(() => {
     const rows = document.querySelectorAll(`#tbody-${analyst} tr`);
     const last = rows[rows.length-1];
@@ -713,8 +773,6 @@ function exportHTML() {
   URL.revokeObjectURL(a.href);
 }
 
-load();
-renderKanban();
 </script>
 <!-- ══════════ PAGE: GANTT ══════════ -->
 <div class="page" id="page-gantt">
@@ -1010,6 +1068,10 @@ switchTab = function(name, btn){
   _origSwitch(name, btn);
   if(name==='gantt') ganttGoToday();
 };
+
+window.addEventListener('DOMContentLoaded', () => {
+  load().catch(err => console.error('Error loading projects from Firestore:', err));
+});
 </script>
 </body>
 </html>
