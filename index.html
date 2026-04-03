@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban — Proyectos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+
+<div class="topbar">
+  <div class="logo">Proyectos <span>/ Dashboard</span></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('kanban',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><rect x="17" y="3" width="5" height="18" rx="1"/></svg>
+      Kanban
+    </button>
+    <button class="tab" onclick="switchTab('analistas',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+      Vista por analista
+    </button>
+    <button class="tab" onclick="switchTab('gantt',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><rect x="3" y="10" width="10" height="3" rx="1.5"/><rect x="3" y="16" width="14" height="3" rx="1.5"/></svg>
+      Gantt
+    </button>
+  </div>
+  <div class="topbar-right">
+    <button onclick="exportHTML()" style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:all .15s" onmouseover="this.style.background='var(--bg)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color='var(--muted)'">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar
+    </button>
+    <span class="stat-pill stat-jp" id="stat-jp">José Pablo: 0</span>
+    <span class="stat-pill stat-mg" id="stat-mg">Miguel: 0</span>
+  </div>
+</div>
+
+<!-- PAGE KANBAN -->
+<div class="page active" id="page-kanban">
+  <div class="kb-toolbar">
+    <button class="btn-ghost active-all" onclick="setFilter('all',this)">Todos</button>
+    <button class="btn-ghost" onclick="setFilter('jp',this)">José Pablo</button>
+    <button class="btn-ghost" onclick="setFilter('mg',this)">Miguel</button>
+    <div style="margin-left:auto">
+      <button class="btn-primary" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Agregar
+      </button>
+    </div>
+  </div>
+  <div class="board-wrap"><div class="board" id="board"></div></div>
+</div>
+
+<!-- PAGE ANALISTAS -->
+<div class="page" id="page-analistas">
+  <div class="av-wrap">
+    <div class="av-intro">
+      <h2>Vista por analista</h2>
+      <div style="display:flex;gap:4px;margin-left:6px">
+        <button class="btn-ghost active-all" id="avf-all" onclick="setAvFilter('all',this)">Todos</button>
+        <button class="btn-ghost" id="avf-jp"  onclick="setAvFilter('jp',this)">José Pablo</button>
+        <button class="btn-ghost" id="avf-mg"  onclick="setAvFilter('mg',this)">Miguel</button>
+      </div>
+      <span style="margin-left:6px"></span>
+      <button class="toggle-col" id="toggle-director" onclick="toggleDirector()" title="Mostrar/ocultar columna Director-a">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Director-a
+      </button>
+      <button class="toggle-col" id="toggle-inicio" onclick="toggleInicio()" title="Mostrar/ocultar columna Fecha de inicio" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Fecha asignación
+      </button>
+    </div>
+    <div class="av-panels">
+
+      <!-- José Pablo -->
+      <div class="analyst-panel" id="panel-jp">
+        <div class="ap-header jp-h">
+          <div class="ap-avatar jp-av">JP</div>
+          <div>
+            <div class="ap-name">José Pablo</div>
+            <div class="ap-sub" id="sub-jp">0 proyectos</div>
+          </div>
+          <span class="ap-count jp-ct" id="cnt-jp">0</span>
+          <button class="ap-add" onclick="addRow('jp')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar fila
+          </button>
+          <button class="ap-dl jp-dl" id="dl-jp" onclick="downloadXlsx('jp')" title="Descargar Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Excel
+          </button>
+        </div>
+        <div class="ap-table-wrap">
+          <table class="ap-table">
+            <thead><tr>
+              <th class="tc">#</th>
+              <th>Cliente</th>
+              <th>Proyecto</th>
+              <th class="director-col col-hidden">Director-a</th>
+              <th>País</th>
+              <th>Estado</th>
+              <th>Necesidad</th>
+              <th>Notas</th>
+              <th class="inicio-col">Inicio</th>
+              <th>Final</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="tbody-jp"></tbody>
+          </table>
+          <div class="ap-empty" id="empty-jp">Sin proyectos asignados aún</div>
+        </div>
+      </div>
+
+      <!-- Miguel -->
+      <div class="analyst-panel" id="panel-mg">
+        <div class="ap-header mg-h">
+          <div class="ap-avatar mg-av">MG</div>
+          <div>
+            <div class="ap-name">Miguel</div>
+            <div class="ap-sub" id="sub-mg">0 proyectos</div>
+          </div>
+          <span class="ap-count mg-ct" id="cnt-mg">0</span>
+          <button class="ap-add" onclick="addRow('mg')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar fila
+          </button>
+          <button class="ap-dl mg-dl" id="dl-mg" onclick="downloadXlsx('mg')" title="Descargar Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Excel
+          </button>
+        </div>
+        <div class="ap-table-wrap">
+          <table class="ap-table">
+            <thead><tr>
+              <th class="tc">#</th>
+              <th>Cliente</th>
+              <th>Proyecto</th>
+              <th class="director-col col-hidden">Director-a</th>
+              <th>País</th>
+              <th>Estado</th>
+              <th>Necesidad</th>
+              <th>Notas</th>
+              <th class="inicio-col">Inicio</th>
+              <th>Final</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="tbody-mg"></tbody>
+          </table>
+          <div class="ap-empty" id="empty-mg">Sin proyectos asignados aún</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="closeBg(event)">
+  <div class="modal">
+    <h3 id="modal-title">Nuevo proyecto</h3>
+    <input type="hidden" id="edit-id">
+    <div class="field-row">
+      <div class="field"><label>Cliente</label><input id="f-client" type="text" placeholder="Ej: KFC — México"></div>
+      <div class="field"><label>País</label><input id="f-country" type="text" placeholder="Ej: México"></div>
+    </div>
+    <div class="field"><label>Proyecto</label><input id="f-title" type="text" placeholder="Nombre del estudio"></div>
+    <div class="field"><label>Director-a</label><input id="f-director" type="text" placeholder="Ej: Ana García"></div>
+    <div class="field-row">
+      <div class="field"><label>Muestra (n)</label><input id="f-n" type="text" placeholder="Ej: n = 400"></div>
+      <div class="field"><label>Analista</label>
+        <select id="f-analyst"><option value="jp">José Pablo</option><option value="mg">Miguel</option></select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Columna / Estado</label>
+        <select id="f-col">
+          <option value="backlog">Backlog</option><option value="prog">En progreso</option>
+          <option value="rev">Revisión</option><option value="done">Completado</option>
+        </select>
+      </div>
+      <div class="field"><label>Necesidad</label>
+        <select id="f-need">
+          <option value="">— Sin definir —</option>
+          <option value="Procesamiento">Procesamiento</option>
+          <option value="Análisis">Análisis</option>
+          <option value="Ambos">Ambos</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Fecha de inicio</label><input id="f-assigned" type="date"></div>
+      <div class="field"><label>Final</label><input id="f-date" type="date"></div>
+    </div>
+    <div class="field"><textarea id="f-notes" placeholder="Observaciones, pendientes..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveCard()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ PAGE: GANTT ══════════ -->
+<div class="page" id="page-gantt">
+  <div class="gantt-wrap">
+    <div class="gantt-toolbar">
+      <div style="display:flex;gap:4px">
+        <button class="btn-ghost active-all" id="gf-all"  onclick="setGanttFilter('all',this)">Todos</button>
+        <button class="btn-ghost" id="gf-jp"   onclick="setGanttFilter('jp',this)">José Pablo</button>
+        <button class="btn-ghost" id="gf-mg"   onclick="setGanttFilter('mg',this)">Miguel</button>
+        <button class="btn-ghost" id="gf-done" onclick="setGanttFilter('done',this)">Completados</button>
+        <button class="btn-ghost" id="gf-open" onclick="setGanttFilter('open',this)">En curso</button>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+        <button class="gnav-btn" onclick="ganttScroll(-1)">&#8249;</button>
+        <span id="gantt-range-lbl" style="font-size:12px;font-weight:500;color:var(--muted);min-width:170px;text-align:center"></span>
+        <button class="gnav-btn" onclick="ganttScroll(1)">&#8250;</button>
+        <button class="gnav-btn gnav-today" onclick="ganttGoToday()">Hoy</button>
+      </div>
+    </div>
+    <div id="gantt-no-data" style="display:none;padding:40px;text-align:center;color:var(--hint);font-size:13px">
+      Ningún proyecto tiene fechas de Inicio y Final definidas aún.<br>
+      <span style="font-size:11px">Agregá fechas desde la Vista por analista o editando cada tarjeta.</span>
+    </div>
+    <div class="gantt-body" id="gantt-body">
+      <div class="gantt-left-col" id="gantt-left"></div>
+      <div class="gantt-right-wrap" id="gantt-right-wrap">
+        <div id="gantt-right"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
