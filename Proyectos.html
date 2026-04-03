@@ -258,14 +258,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <thead><tr>
               <th class="tc">#</th>
               <th>Cliente</th>
-              <th>Estudio / Proyecto</th>
+              <th>Proyecto</th>
               <th class="director-col col-hidden">Director-a</th>
               <th>País</th>
               <th>Estado</th>
               <th>Necesidad</th>
               <th>Notas</th>
               <th class="inicio-col">Inicio</th>
-              <th>Entrega</th>
+              <th>Final</th>
               <th></th>
             </tr></thead>
             <tbody id="tbody-jp"></tbody>
@@ -297,14 +297,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <thead><tr>
               <th class="tc">#</th>
               <th>Cliente</th>
-              <th>Estudio / Proyecto</th>
+              <th>Proyecto</th>
               <th class="director-col col-hidden">Director-a</th>
               <th>País</th>
               <th>Estado</th>
               <th>Necesidad</th>
               <th>Notas</th>
               <th class="inicio-col">Inicio</th>
-              <th>Entrega</th>
+              <th>Final</th>
               <th></th>
             </tr></thead>
             <tbody id="tbody-mg"></tbody>
@@ -326,7 +326,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="field"><label>Cliente</label><input id="f-client" type="text" placeholder="Ej: KFC — México"></div>
       <div class="field"><label>País</label><input id="f-country" type="text" placeholder="Ej: México"></div>
     </div>
-    <div class="field"><label>Estudio / Proyecto</label><input id="f-title" type="text" placeholder="Nombre del estudio"></div>
+    <div class="field"><label>Proyecto</label><input id="f-title" type="text" placeholder="Nombre del estudio"></div>
     <div class="field"><label>Director-a</label><input id="f-director" type="text" placeholder="Ej: Ana García"></div>
     <div class="field-row">
       <div class="field"><label>Muestra (n)</label><input id="f-n" type="text" placeholder="Ej: n = 400"></div>
@@ -352,7 +352,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
     <div class="field-row">
       <div class="field"><label>Fecha de inicio</label><input id="f-assigned" type="date"></div>
-      <div class="field"><label>Entrega</label><input id="f-date" type="date"></div>
+      <div class="field"><label>Final</label><input id="f-date" type="date"></div>
     </div>
     <div class="field"><textarea id="f-notes" placeholder="Observaciones, pendientes..."></textarea></div>
     <div class="modal-actions">
@@ -725,7 +725,7 @@ function renderAnalysts() {
         </td>
         <td class="notes-cell"><div class="ci"><span class="editable" contenteditable="true" data-f="notes" data-id="${p.id}" onblur="ce(this)">${esc(p.notes||'')}</span></div></td>
         <td class="date-cell inicio-col"><input type="date" value="${p.assigned||''}" title="Fecha de inicio" onchange="cse(${p.id},'assigned',this.value)"></td>
-        <td class="date-cell"><input type="date" value="${p.date||''}" title="Entrega" onchange="cse(${p.id},'date',this.value)"></td>
+        <td class="date-cell"><input type="date" value="${p.date||''}" title="Final" onchange="cse(${p.id},'date',this.value)"></td>
         <td><div class="row-acts">
           <button class="row-btn" title="Editar en modal" onclick="editCard(${p.id})">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -775,7 +775,7 @@ function downloadXlsx(analyst) {
   const titleRow  = [`Proyectos asignados — ${name}`,'','','','','','','','',''];
   const dateRow   = [`Generado: ${today}`,'','','','','','','','',''];
   const blankRow  = ['','','','','','','','','',''];
-  const headerRow = ['#','Cliente','Estudio / Proyecto','Director-a','País','Estado','Necesidad','Notas','Inicio','Entrega'];
+  const headerRow = ['#','Cliente','Proyecto','Director-a','País','Estado','Necesidad','Notas','Inicio','Final'];
   const dataRows  = list.map((p,i) => [
     i+1, p.client||'', p.title||'', p.director||'', p.country||'',
     COL_LABEL[p.col]||p.col, p.need||'', p.notes||'', fmtDate(p.assigned), fmtDate(p.date),
@@ -849,7 +849,7 @@ window.load = load;
       </div>
     </div>
     <div id="gantt-no-data" style="display:none;padding:40px;text-align:center;color:var(--hint);font-size:13px">
-      Ningún proyecto tiene fechas de Inicio y Entrega definidas aún.<br>
+      Ningún proyecto tiene fechas de Inicio y Final definidas aún.<br>
       <span style="font-size:11px">Agregá fechas desde la Vista por analista o editando cada tarjeta.</span>
     </div>
     <div class="gantt-body" id="gantt-body">
