@@ -187,6 +187,24 @@ function matchesSearch(project) {
   return searchableText.includes(query);
 }
 
+function sortProjectsByDate(list) {
+  return [...list].sort((a, b) => {
+    const aHasDate = !!a.date;
+    const bHasDate = !!b.date;
+
+    if (aHasDate && bHasDate) {
+      const byDate = a.date.localeCompare(b.date);
+      if (byDate !== 0) return byDate;
+      return (a.id || 0) - (b.id || 0);
+    }
+
+    if (aHasDate) return -1;
+    if (bHasDate) return 1;
+
+    return (a.id || 0) - (b.id || 0);
+  });
+}
+
 async function ensureUserProfile(user) {
   const userRef = userDocRef(user.uid);
   const userSnap = await getDoc(userRef);
@@ -328,7 +346,7 @@ function renderKanban() {
   const board = document.getElementById('board');
   board.innerHTML = '';
   COLS.forEach(col => {
-    const inCol = projects.filter(p => p.col === col.id && matchesSearch(p));
+    const inCol = sortProjectsByDate(projects.filter(p => p.col === col.id && matchesSearch(p)));
     const vis = inCol.filter(p => curFilter==='all' || p.a===curFilter);
     const el = document.createElement('div');
     el.className = `col col-${col.id}`;
@@ -472,7 +490,7 @@ async function delCard(id) {
 /* ── ANALYST TABLE ── */
 function renderAnalysts() {
   ANALYST_CODES.forEach(a => {
-    const list = projects.filter(p => p.a===a && matchesSearch(p));
+    const list = sortProjectsByDate(projects.filter(p => p.a===a && matchesSearch(p)));
     const tbody = document.getElementById('tbody-'+a);
     if (!tbody) return;
     document.getElementById('cnt-'+a).textContent = list.length;
@@ -522,7 +540,7 @@ function renderAnalysts() {
 }
 
 function consolidatedAnalystRows() {
-  return getAnalystFilteredProjects().map((p, index) => ({
+  return sortProjectsByDate(getAnalystFilteredProjects()).map((p, index) => ({
     row: index + 1,
     id: p.id,
     client: p.client || '',

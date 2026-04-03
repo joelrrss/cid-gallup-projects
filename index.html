@@ -60,12 +60,14 @@
 <!-- PAGE KANBAN -->
 <div class="page active" id="page-kanban">
   <div class="kb-toolbar">
-    <button class="btn-ghost active-all" onclick="setFilter('all',this)">Todos</button>
-    <button class="btn-ghost" onclick="setFilter('jp',this)">Jose</button>
-    <button class="btn-ghost" onclick="setFilter('mg',this)">Miguel</button>
-    <button class="btn-ghost" onclick="setFilter('jr',this)">Joel</button>
-    <button class="btn-ghost" onclick="setFilter('br',this)">Bryan</button>
-    <div style="margin-left:auto">
+    <div class="kb-toolbar-filters">
+      <button class="btn-ghost active-all" onclick="setFilter('all',this)">Todos</button>
+      <button class="btn-ghost" onclick="setFilter('jp',this)">Jose</button>
+      <button class="btn-ghost" onclick="setFilter('mg',this)">Miguel</button>
+      <button class="btn-ghost" onclick="setFilter('jr',this)">Joel</button>
+      <button class="btn-ghost" onclick="setFilter('br',this)">Bryan</button>
+    </div>
+    <div class="kb-toolbar-actions">
       <button class="btn-primary" onclick="openModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Agregar
@@ -87,15 +89,6 @@
         <button class="btn-ghost" id="avf-jr"  onclick="setAvFilter('jr',this)">Joel</button>
         <button class="btn-ghost" id="avf-br"  onclick="setAvFilter('br',this)">Bryan</button>
       </div>
-      <span style="margin-left:6px"></span>
-      <button class="toggle-col" id="toggle-director" onclick="toggleDirector()" title="Mostrar/ocultar columna Director-a">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        Director-a
-      </button>
-      <button class="toggle-col" id="toggle-inicio" onclick="toggleInicio()" title="Mostrar/ocultar columna Fecha de inicio" style="margin-left:auto">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Fecha asignación
-      </button>
     </div>
     <div class="av-panels">
 
@@ -352,14 +345,18 @@
 <div class="page" id="page-gantt">
   <div class="gantt-wrap">
     <div class="gantt-toolbar">
-      <div style="display:flex;gap:4px">
-        <button class="btn-ghost active-all" id="gf-all"  onclick="setGanttFilter('all',this)">Todos</button>
-        <button class="btn-ghost" id="gf-jp"   onclick="setGanttFilter('jp',this)">Jose</button>
-        <button class="btn-ghost" id="gf-mg"   onclick="setGanttFilter('mg',this)">Miguel</button>
-        <button class="btn-ghost" id="gf-jr"   onclick="setGanttFilter('jr',this)">Joel</button>
-        <button class="btn-ghost" id="gf-br"   onclick="setGanttFilter('br',this)">Bryan</button>
-        <button class="btn-ghost" id="gf-done" onclick="setGanttFilter('done',this)">Completados</button>
-        <button class="btn-ghost" id="gf-open" onclick="setGanttFilter('open',this)">En curso</button>
+      <div class="gantt-filters">
+        <div class="gantt-filters-main">
+          <button class="btn-ghost active-all" id="gf-all"  onclick="setGanttFilter('all',this)">Todos</button>
+          <button class="btn-ghost" id="gf-jp"   onclick="setGanttFilter('jp',this)">Jose</button>
+          <button class="btn-ghost" id="gf-mg"   onclick="setGanttFilter('mg',this)">Miguel</button>
+          <button class="btn-ghost" id="gf-jr"   onclick="setGanttFilter('jr',this)">Joel</button>
+          <button class="btn-ghost" id="gf-br"   onclick="setGanttFilter('br',this)">Bryan</button>
+        </div>
+        <div class="gantt-filters-status">
+          <button class="btn-ghost" id="gf-done" onclick="setGanttFilter('done',this)">Completados</button>
+          <button class="btn-ghost" id="gf-open" onclick="setGanttFilter('open',this)">En curso</button>
+        </div>
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
         <button class="gnav-btn" onclick="ganttScroll(-1)">&#8249;</button>
