@@ -362,7 +362,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
-<script>
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDSPVH8rSW4qnMs3EqQs0r5nP4vgd-f0mw",
+  authDomain: "cid-gallup-proyectos.firebaseapp.com",
+  projectId: "cid-gallup-proyectos",
+  storageBucket: "cid-gallup-proyectos.firebasestorage.app",
+  messagingSenderId: "228420524143",
+  appId: "1:228420524143:web:f79874a46f98784f6bd59a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);  
 const ANAME = {jp:'José Pablo', mg:'Miguel'};
 const COL_LABEL = {backlog:'Backlog', prog:'En progreso', rev:'Revisión', done:'Completado'};
 const COL_OPTS = ['backlog','prog','rev','done'];
@@ -414,9 +438,14 @@ function projectCollectionRef() {
   return collection(db, PROJECT_COLLECTION);
 }
 
-function normalizeProject(project) {
+function projectDocRef(docId) {
+  return doc(db, PROJECT_COLLECTION, docId);
+}
+
+function normalizeProject(project, docId = '') {
   return {
     id: Number(project.id),
+    docId,
     client: project.client || '',
     country: project.country || '',
     title: project.title || '',
@@ -432,6 +461,11 @@ function normalizeProject(project) {
   };
 }
 
+function projectPayload(project) {
+  const {docId, ...payload} = normalizeProject(project, project.docId || '');
+  return payload;
+}
+
 function refreshAllViews() {
   renderKanban();
   renderAnalysts();
@@ -439,40 +473,32 @@ function refreshAllViews() {
   updateStats();
 }
 
-async function findProjectDocByInternalId(id) {
-  const snapshot = await getDocs(query(projectCollectionRef(), where('id', '==', Number(id))));
-  return snapshot.docs[0] || null;
-}
-
 async function load() {
   const snapshot = await getDocs(projectCollectionRef());
   projects = snapshot.docs
-    .map(docSnap => normalizeProject(docSnap.data()))
+    .map(docSnap => normalizeProject(docSnap.data(), docSnap.id))
     .sort((a, b) => a.id - b.id);
   nextId = Math.max(100, ...projects.map(p => Number(p.id) || 0)) + 1;
   refreshAllViews();
 }
 
-async function upsertProject(project) {
-  const payload = normalizeProject(project);
-  const existingDoc = await findProjectDocByInternalId(payload.id);
-  if (existingDoc) {
-    await updateDoc(existingDoc.ref, payload);
-    return;
-  }
-  await addDoc(projectCollectionRef(), payload);
+async function createProject(project) {
+  await addDoc(projectCollectionRef(), projectPayload(project));
 }
 
-async function updateProjectFields(id, fields) {
-  const existingDoc = await findProjectDocByInternalId(id);
-  if (!existingDoc) return;
-  await updateDoc(existingDoc.ref, fields);
+async function updateProject(project) {
+  if (!project.docId) throw new Error('Missing Firestore docId for project update.');
+  await updateDoc(projectDocRef(project.docId), projectPayload(project));
 }
 
-async function deleteProjectByInternalId(id) {
-  const existingDoc = await findProjectDocByInternalId(id);
-  if (!existingDoc) return;
-  await deleteDoc(existingDoc.ref);
+async function updateProjectFields(docId, fields) {
+  if (!docId) throw new Error('Missing Firestore docId for project field update.');
+  await updateDoc(projectDocRef(docId), fields);
+}
+
+async function deleteProject(docId) {
+  if (!docId) throw new Error('Missing Firestore docId for project delete.');
+  await deleteDoc(projectDocRef(docId));
 }
 
 function save() {}
@@ -549,7 +575,7 @@ function renderKanban() {
       if (dragId !== null) {
         const p = projects.find(x => x.id === dragId);
         if (p) {
-          await updateProjectFields(p.id, {col: col.id, isnew: false});
+          await updateProjectFields(p.docId, {col: col.id, isnew: false});
           await load();
         }
       }
@@ -641,9 +667,11 @@ async function saveCard() {
   if (!client||!title) { document.getElementById('f-title').focus(); return; }
   if (id) {
     const p = projects.find(x => x.id===parseInt(id));
-    if (p) await upsertProject({...p, client,country,title,n,a:analyst,col,need,notes,date,assigned,director});
+    if (p) {
+      await updateProject({...p, client,country,title,n,a:analyst,col,need,notes,date,assigned,director});
+    }
   } else {
-    await upsertProject({id:nextId++,client,country,title,n,col,a:analyst,isnew:false,need,notes,date,assigned,director});
+    await createProject({id:nextId++,client,country,title,n,col,a:analyst,isnew:false,need,notes,date,assigned,director});
   }
   await load();
   closeModal();
@@ -651,7 +679,9 @@ async function saveCard() {
 }
 async function delCard(id) {
   if (!confirm('¿Eliminar este proyecto?')) return;
-  await deleteProjectByInternalId(id);
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  await deleteProject(p.docId);
   await load();
   refreshAllViews();
 }
@@ -706,20 +736,20 @@ function renderAnalysts() {
 async function ce(el) {
   const p = projects.find(x => x.id===parseInt(el.dataset.id));
   if (p) {
-    await updateProjectFields(p.id, {[el.dataset.f]: el.innerText.trim()});
+    await updateProjectFields(p.docId, {[el.dataset.f]: el.innerText.trim()});
     await load();
   }
 }
 async function cse(id, field, val) {
   const p = projects.find(x => x.id===id);
   if (p) {
-    await updateProjectFields(p.id, {[field]: val});
+    await updateProjectFields(p.docId, {[field]: val});
     await load();
   }
 }
 async function addRow(analyst) {
   const p = {id:nextId++,client:'',country:'',title:'Nuevo proyecto',n:'',col:'backlog',a:analyst,isnew:false,need:'',notes:'',date:'',assigned:'',director:''};
-  await upsertProject(p);
+  await createProject(p);
   await load();
   refreshAllViews();
   setTimeout(() => {
@@ -772,6 +802,24 @@ function exportHTML() {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+window.switchTab = switchTab;
+window.setFilter = setFilter;
+window.setAvFilter = setAvFilter;
+window.toggleDirector = toggleDirector;
+window.toggleInicio = toggleInicio;
+window.openModal = openModal;
+window.editCard = editCard;
+window.closeModal = closeModal;
+window.closeBg = closeBg;
+window.saveCard = saveCard;
+window.delCard = delCard;
+window.addRow = addRow;
+window.downloadXlsx = downloadXlsx;
+window.exportHTML = exportHTML;
+window.ce = ce;
+window.cse = cse;
+
 
 </script>
 <!-- ══════════ PAGE: GANTT ══════════ -->
@@ -1054,13 +1102,6 @@ function renderGantt(){
   gl.style.overflowY='hidden';
   wrap.onscroll=()=>{ gl.scrollTop=wrap.scrollTop; };
 }
-
-// Patch save() to refresh Gantt if visible
-const _origSave = save;
-save = function(){
-  _origSave();
-  if(document.getElementById('page-gantt').classList.contains('active')) renderGantt();
-};
 
 // Patch switchTab to init Gantt on first open
 const _origSwitch = switchTab;
