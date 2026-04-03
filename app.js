@@ -63,32 +63,6 @@ const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const userInfo = document.getElementById('user-info');
 
-const DEFAULTS = [
-  {id:1,  client:'KFC — México',             country:'México',          title:'Prueba de producto: 4 salsas sandwiches',  n:'',         col:'backlog',    a:'jp', isnew:false, need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
-  {id:2,  client:'KFC — México',             country:'México',          title:'Prueba de producto: 5 salsas para dipear', n:'',         col:'backlog',    a:'jp', isnew:false, need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
-  {id:3,  client:'Min. Seguridad',           country:'Rep. Dominicana', title:'Estudio de percepción de seguridad',        n:'',         col:'backlog',    a:'jp', isnew:false, need:'Análisis',      notes:'', date:'', assigned:'', director:''},
-  {id:4,  client:'KFC — México',             country:'México',          title:'Estudio comparativo: Popeyes vs KFC',       n:'',         col:'backlog',    a:'mg', isnew:false, need:'Análisis',      notes:'', date:'', assigned:'', director:''},
-  {id:5,  client:'LAPOP',                    country:'Nicaragua',       title:'Barómetro de las Américas',                 n:'',         col:'backlog',    a:'mg', isnew:false, need:'Ambos',         notes:'', date:'', assigned:'', director:''},
-  {id:6,  client:'Junta de Prot. Social',    country:'Costa Rica',      title:'Puntos ilegales + FONAT',                   n:'',         col:'backlog',    a:'mg', isnew:false, need:'Análisis',      notes:'', date:'', assigned:'', director:''},
-  {id:7,  client:'Junta de Prot. Social',    country:'Costa Rica',      title:'CUAS',                                      n:'',         col:'backlog',    a:'mg', isnew:false, need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
-  {id:8,  client:'Ficohsa',                  country:'Honduras',        title:'Rediseño',                                  n:'',         col:'backlog', a:'jp', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:9,  client:'Banco Popular',            country:'Costa Rica',      title:'Rediseño',                                  n:'',         col:'backlog', a:'jp', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:10, client:'CIMA',                     country:'',                title:'Por definir',                               n:'',         col:'backlog', a:'jp', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:11, client:'Telecable',                country:'Costa Rica',      title:'Por definir',                               n:'',         col:'backlog', a:'jp', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:12, client:'Sutel',                    country:'Costa Rica',      title:'Por definir',                               n:'',         col:'backlog', a:'jp', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:13, client:'Ministerio de Cultura',    country:'',                title:'Diagramación',                              n:'',         col:'backlog', a:'jp', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:14, client:'Sociedad Seguros de Vida', country:'',                title:'Por definir',                               n:'',         col:'backlog', a:'mg', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:15, client:'Walmart',                  country:'',                title:'5 informes',                                n:'',         col:'backlog', a:'mg', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:16, client:'UNICEF',                   country:'',                title:'Por definir',                               n:'',         col:'backlog', a:'mg', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:17, client:'Banco Popular',            country:'Costa Rica',      title:'Cliente misterioso, NPS y salarios',        n:'',         col:'backlog', a:'mg', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:18, client:'NPS G&T',                  country:'Guatemala',       title:'Rediseño',                                  n:'',         col:'backlog', a:'mg', isnew:false, need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:19, client:'Junta de Prot. Social',    country:'Costa Rica',      title:'CUAS Vendedores',                           n:'n = 400',  col:'backlog',    a:'jp', isnew:false,  need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
-  {id:20, client:'Junta de Prot. Social',    country:'Costa Rica',      title:'CUAS Digital',                              n:'n = 700',  col:'backlog',    a:'mg', isnew:false,  need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
-  {id:21, client:'Junta de Prot. Social',    country:'Costa Rica',      title:'Estimación de puntos de venta',             n:'n = 4000', col:'backlog',    a:'jp', isnew:false,  need:'Ambos',         notes:'', date:'', assigned:'', director:''},
-  {id:22, client:'ICT',                      country:'Costa Rica',      title:'Módulo de accesibilidad',                   n:'',         col:'backlog', a:'jp', isnew:false,  need:'',              notes:'', date:'', assigned:'', director:''},
-  {id:23, client:'ICT',                      country:'Costa Rica',      title:'Módulo IA',                                 n:'',         col:'backlog', a:'mg', isnew:false,  need:'',              notes:'', date:'', assigned:'', director:''},
-];
-
 function fmtDate(d) {
   if (!d) return '';
   const [y,m,dd] = d.split('-');
@@ -162,7 +136,7 @@ async function ensureUserProfile(user) {
       uid: user.uid,
       name: user.displayName || 'Usuario',
       email: user.email || '',
-      role: 'Analista',
+      role: 'analista',
       createdAt: serverTimestamp()
     };
     await setDoc(userRef, profile);
@@ -619,20 +593,7 @@ function exportConsolidatedXlsx() {
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
 
 function exportHTML() {
-  // Get the full HTML of this page
-  const fullHTML = document.documentElement.outerHTML;
-  // Build a new DEFAULTS block with current projects
-  const newDefaults = 'const DEFAULTS = ' + JSON.stringify(projects, null, 2) + ';';
-  // Replace the DEFAULTS block in the source
-  const updated = fullHTML.replace(/const DEFAULTS = \[[\s\S]*?\];/, newDefaults);
-  // Also bump the storage key so new devices load fresh defaults
-  const bumped = updated.replace(/kb-v7/g, 'kb-v8');
-  const blob = new Blob([bumped], {type: 'text/html'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'index.html';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  console.warn('exportHTML() está deshabilitada en la versión con Firestore.');
 }
 
 window.switchTab = switchTab;
