@@ -98,13 +98,45 @@ function normalizeProject(project, docId = '') {
     notes: project.notes || '',
     date: project.date || '',
     assigned: project.assigned || '',
-    director: project.director || ''
+    director: project.director || '',
+    createdBy: project.createdBy || '',
+    createdByName: project.createdByName || '',
+    createdAt: project.createdAt || null,
+    updatedBy: project.updatedBy || '',
+    updatedByName: project.updatedByName || '',
+    updatedAt: project.updatedAt || null
   };
 }
 
 function projectPayload(project) {
   const {docId, ...payload} = normalizeProject(project, project.docId || '');
   return payload;
+}
+
+function auditUserName() {
+  if (currentUserProfile?.name) return currentUserProfile.name;
+  if (currentUser?.displayName) return currentUser.displayName;
+  if (currentUser?.email) return currentUser.email;
+  return 'Usuario';
+}
+
+function createAuditFields() {
+  return {
+    createdBy: currentUser?.uid || '',
+    createdByName: auditUserName(),
+    createdAt: serverTimestamp(),
+    updatedBy: currentUser?.uid || '',
+    updatedByName: auditUserName(),
+    updatedAt: serverTimestamp()
+  };
+}
+
+function updateAuditFields() {
+  return {
+    updatedBy: currentUser?.uid || '',
+    updatedByName: auditUserName(),
+    updatedAt: serverTimestamp()
+  };
 }
 
 function showAuthScreen() {
@@ -182,17 +214,26 @@ async function load() {
 }
 
 async function createProject(project) {
-  await addDoc(projectCollectionRef(), projectPayload(project));
+  await addDoc(projectCollectionRef(), {
+    ...projectPayload(project),
+    ...createAuditFields()
+  });
 }
 
 async function updateProject(project) {
   if (!project.docId) throw new Error('Missing Firestore docId for project update.');
-  await updateDoc(projectDocRef(project.docId), projectPayload(project));
+  await updateDoc(projectDocRef(project.docId), {
+    ...projectPayload(project),
+    ...updateAuditFields()
+  });
 }
 
 async function updateProjectFields(docId, fields) {
   if (!docId) throw new Error('Missing Firestore docId for project field update.');
-  await updateDoc(projectDocRef(docId), fields);
+  await updateDoc(projectDocRef(docId), {
+    ...fields,
+    ...updateAuditFields()
+  });
 }
 
 async function deleteProject(docId) {
@@ -301,6 +342,11 @@ function renderKanban() {
         ${p.date?`<div class="card-date">${fmtDate(p.date)}</div>`:''}
         ${p.assigned&&showInicio?`<div class="card-assigned"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Inicio: ${fmtDate(p.assigned)}</div>`:''}
         ${p.notes?`<div class="card-notes">${esc(p.notes)}</div>`:''}
+        ${(p.createdByName || p.updatedByName) ? `
+        <div class="card-meta">
+          ${p.createdByName ? `<div>Creado por: ${esc(p.createdByName)}</div>` : ''}
+          ${p.updatedByName ? `<div>Última edición: ${esc(p.updatedByName)}</div>` : ''}
+        </div>` : ''}
         <div class="card-footer" style="margin-top:8px">
           <span class="analyst-badge a-${p.a}">${ANAME[p.a]}</span>
           <div class="card-actions">
@@ -427,6 +473,8 @@ function renderAnalysts() {
         <td class="notes-cell"><div class="ci"><span class="editable" contenteditable="true" data-f="notes" data-id="${p.id}" onblur="ce(this)">${esc(p.notes||'')}</span></div></td>
         <td class="date-cell inicio-col"><input type="date" value="${p.assigned||''}" title="Fecha de inicio" onchange="cse(${p.id},'assigned',this.value)"></td>
         <td class="date-cell"><input type="date" value="${p.date||''}" title="Final" onchange="cse(${p.id},'date',this.value)"></td>
+        <td><div class="ci">${esc(p.createdByName || '')}</div></td>
+        <td><div class="ci">${esc(p.updatedByName || '')}</div></td>
         <td><div class="row-acts">
           <button class="row-btn" title="Editar en modal" onclick="editCard(${p.id})">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -457,7 +505,9 @@ function consolidatedAnalystRows() {
     notes: p.notes || '',
     assigned: p.assigned || '',
     date: p.date || '',
-    director: p.director || ''
+    director: p.director || '',
+    createdByName: p.createdByName || '',
+    updatedByName: p.updatedByName || ''
   }));
 }
 
@@ -494,7 +544,10 @@ function renderConsolidatedAnalystTable() {
       <td class="mono">${esc(fmtDate(row.assigned))}</td>
       <td class="mono">${esc(fmtDate(row.date))}</td>
       <td>${esc(row.director)}</td>`;
-    body.appendChild(tr);
+      tr.innerHTML += `
+      <td>${esc(row.createdByName)}</td>
+      <td>${esc(row.updatedByName)}</td>`;
+      body.appendChild(tr);
   });
 }
 
@@ -530,18 +583,18 @@ function downloadXlsx(analyst) {
   const name = ANAME[analyst];
   const today = new Date().toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const wb = XLSX.utils.book_new();
-  const titleRow  = [`Proyectos asignados — ${name}`,'','','','','','','','',''];
-  const dateRow   = [`Generado: ${today}`,'','','','','','','','',''];
-  const blankRow  = ['','','','','','','','','',''];
-  const headerRow = ['#','Cliente','Proyecto','Director-a','País','Estado','Necesidad','Notas','Inicio','Final'];
+  const titleRow  = [`Proyectos asignados — ${name}`,'','','','','','','','','','',''];
+  const dateRow   = [`Generado: ${today}`,'','','','','','','','','','',''];
+  const blankRow  = ['','','','','','','','','','','',''];
+  const headerRow = ['#','Cliente','Proyecto','Director-a','País','Estado','Necesidad','Notas','Inicio','Final','Creado por','Última edición'];
   const dataRows  = list.map((p,i) => [
     i+1, p.client||'', p.title||'', p.director||'', p.country||'',
-    COL_LABEL[p.col]||p.col, p.need||'', p.notes||'', fmtDate(p.assigned), fmtDate(p.date),
+    COL_LABEL[p.col]||p.col, p.need||'', p.notes||'', fmtDate(p.assigned), fmtDate(p.date), p.createdByName||'', p.updatedByName||'',
   ]);
   const wsData = [titleRow, dateRow, blankRow, headerRow, ...dataRows];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:5},{wch:24},{wch:38},{wch:18},{wch:16},{wch:16},{wch:14},{wch:28},{wch:14},{wch:14}];
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
+  ws['!cols'] = [{wch:5},{wch:24},{wch:38},{wch:18},{wch:16},{wch:16},{wch:14},{wch:28},{wch:14},{wch:14},{wch:16},{wch:18}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:11}},{s:{r:1,c:0},e:{r:1,c:11}}];
   XLSX.utils.book_append_sheet(wb, ws, name.substring(0,31));
   XLSX.writeFile(wb, `proyectos_${analyst}_${new Date().toISOString().slice(0,10)}.xlsx`);
   const btn = document.getElementById('dl-'+analyst);
@@ -563,10 +616,10 @@ function exportConsolidatedXlsx() {
   const today = new Date().toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const wb = XLSX.utils.book_new();
   const wsData = [
-    [title,'','','','','','','','','','','','',''],
-    [`Generado: ${today}`,'','','','','','','','','','','','',''],
-    ['','','','','','','','','','','','','',''],
-    ['#','ID','Cliente','País','Proyecto','Muestra (n)','Estado','Responsable','Necesidad','Notas','Inicio','Final','Director-a'],
+    [title,'','','','','','','','','','','','','','',''],
+    [`Generado: ${today}`,'','','','','','','','','','','','','','',''],
+    ['','','','','','','','','','','','','','','',''],
+    ['#','ID','Cliente','País','Proyecto','Muestra (n)','Estado','Responsable','Necesidad','Notas','Inicio','Final','Director-a','Creado por','Última edición'],
     ...rows.map(row => [
       row.row,
       row.id,
@@ -580,12 +633,14 @@ function exportConsolidatedXlsx() {
       row.notes,
       fmtDate(row.assigned),
       fmtDate(row.date),
-      row.director
+      row.director,
+      row.createdByName,
+      row.updatedByName
     ])
   ];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:5},{wch:8},{wch:22},{wch:16},{wch:34},{wch:14},{wch:16},{wch:16},{wch:14},{wch:28},{wch:14},{wch:14},{wch:18}];
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}}];
+  ws['!cols'] = [{wch:5},{wch:8},{wch:22},{wch:16},{wch:34},{wch:14},{wch:16},{wch:16},{wch:14},{wch:28},{wch:14},{wch:14},{wch:18},{wch:16},{wch:18}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:14}},{s:{r:1,c:0},e:{r:1,c:14}}];
   XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
   XLSX.writeFile(wb, `proyectos_consolidado_${filterLabel}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }

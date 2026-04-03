@@ -79,6 +79,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .n-proc{background:#fdf4ff;color:#7e22ce}.n-anal{background:#fff7ed;color:#9a3412}.n-amb{background:var(--bg);color:var(--muted)}
 .card-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--hint);margin-top:4px}
 .card-notes{font-size:11px;color:var(--muted);font-style:italic;margin-top:5px;line-height:1.4;border-top:1px solid var(--border);padding-top:5px}
+.card-meta{font-size:10px;color:var(--hint);line-height:1.45;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
 .card-assigned{font-size:10px;color:var(--hint);margin-top:3px;display:flex;align-items:center;gap:4px}
 .card-assigned svg{width:10px;height:10px;flex-shrink:0;opacity:.55}
 .toggle-col{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--hint);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
@@ -129,7 +130,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* Table */
 .ap-table-wrap{overflow-x:auto}
-.ap-table{width:100%;border-collapse:collapse;font-size:12px;min-width:780px}
+.ap-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1040px}
 .ap-table th{padding:7px 10px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--hint);background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0}
 .ap-table th.tc{text-align:center;width:36px}
 .ap-table td{border-bottom:1px solid var(--border);vertical-align:middle;padding:0}
@@ -159,7 +160,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .av-sheet-header h3{font-size:14px;font-weight:600}
 .av-sheet-header p{font-size:12px;color:var(--muted);margin-top:3px}
 .av-sheet-wrap{overflow:auto}
-.av-sheet-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1200px}
+.av-sheet-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1460px}
 .av-sheet-table th{padding:9px 10px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--hint);background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
 .av-sheet-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text)}
 .av-sheet-table tr:hover td{background:#fafaf9}
