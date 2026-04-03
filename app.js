@@ -6,11 +6,21 @@ import {
   getFirestore,
   collection,
   getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
-  doc
+  doc,
+  setDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDSPVH8rSW4qnMs3EqQs0r5nP4vgd-f0mw",
@@ -22,8 +32,11 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);  
-const ANAME = {jp:'José Pablo', mg:'Miguel'};
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+const ANAME = {jp:'Jose', mg:'Miguel', jr:'Joel', br:'Bryan'};
+const ANALYST_CODES = ['jp', 'mg', 'jr', 'br'];
 const COL_LABEL = {backlog:'Backlog', prog:'En progreso', rev:'Revisión', done:'Completado'};
 const COL_OPTS = ['backlog','prog','rev','done'];
 const NEED_CLS = {'Procesamiento':'n-proc','Análisis':'n-anal','Ambos':'n-amb','':'n-amb'};
@@ -35,12 +48,20 @@ const COLS = [
 ];
 
 let nextId = 100, curFilter = 'all', dragId = null, projects = [], showInicio = false, avFilter = 'all', showDirector = false;
+let currentUser = null;
+let currentUserProfile = null;
 
 window.ANAME = ANAME;
 Object.defineProperty(window, 'projects', {
   get: () => projects,
   set: value => { projects = value; }
 });
+
+const authScreen = document.getElementById('auth-screen');
+const appScreen = document.getElementById('app-screen');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const userInfo = document.getElementById('user-info');
 
 const DEFAULTS = [
   {id:1,  client:'KFC — México',             country:'México',          title:'Prueba de producto: 4 salsas sandwiches',  n:'',         col:'backlog',    a:'jp', isnew:false, need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
@@ -84,6 +105,10 @@ function projectDocRef(docId) {
   return doc(db, PROJECT_COLLECTION, docId);
 }
 
+function userDocRef(uid) {
+  return doc(db, 'users', uid);
+}
+
 function normalizeProject(project, docId = '') {
   return {
     id: Number(project.id),
@@ -108,6 +133,63 @@ function projectPayload(project) {
   return payload;
 }
 
+function showAuthScreen() {
+  authScreen.hidden = false;
+  appScreen.hidden = true;
+  userInfo.textContent = '';
+  projects = [];
+}
+
+function showAppScreen(user) {
+  authScreen.hidden = true;
+  appScreen.hidden = false;
+  const name = user.displayName || 'Usuario';
+  const email = user.email || '';
+  userInfo.textContent = email ? `${name} · ${email}` : name;
+}
+
+function getAnalystFilteredProjects() {
+  if (avFilter === 'all') return [...projects];
+  return projects.filter(p => p.a === avFilter);
+}
+
+async function ensureUserProfile(user) {
+  const userRef = userDocRef(user.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    const profile = {
+      uid: user.uid,
+      name: user.displayName || 'Usuario',
+      email: user.email || '',
+      role: 'Analista',
+      createdAt: serverTimestamp()
+    };
+    await setDoc(userRef, profile);
+    return {...profile, createdAt: null};
+  }
+
+  return userSnap.data();
+}
+
+async function handleLogin() {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    console.error('Error signing in with Google:', error);
+    alert('No se pudo iniciar sesión con Google.');
+  }
+}
+
+async function handleLogout() {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error('Error signing out:', error);
+    alert('No se pudo cerrar sesión.');
+  }
+}
+
 function refreshAllViews() {
   renderKanban();
   renderAnalysts();
@@ -116,6 +198,7 @@ function refreshAllViews() {
 }
 
 async function load() {
+  if (!currentUser) return;
   const snapshot = await getDocs(projectCollectionRef());
   projects = snapshot.docs
     .map(docSnap => normalizeProject(docSnap.data(), docSnap.id))
@@ -155,10 +238,12 @@ function toggleDirector() {
 
 function setAvFilter(type, btn) {
   avFilter = type;
-  document.querySelectorAll('#avf-all,#avf-jp,#avf-mg').forEach(b => b.className = 'btn-ghost');
-  btn.classList.add('active-' + (type === 'all' ? 'all' : type === 'jp' ? 'jp' : 'mg'));
-  document.getElementById('panel-jp').classList.toggle('panel-hidden', type === 'mg');
-  document.getElementById('panel-mg').classList.toggle('panel-hidden', type === 'jp');
+  document.querySelectorAll('#avf-all,#avf-jp,#avf-mg,#avf-jr,#avf-br').forEach(b => b.className = 'btn-ghost');
+  btn.classList.add('active-' + (type === 'all' ? 'all' : type));
+  ANALYST_CODES.forEach(code => {
+    const panel = document.getElementById('panel-' + code);
+    if (panel) panel.classList.toggle('panel-hidden', type !== 'all' && type !== code);
+  });
   document.querySelector('.av-panels').style.gridTemplateColumns = type === 'all' ? '' : '1fr';
 }
 
@@ -181,10 +266,10 @@ function switchTab(name, btn) {
 
 /* ── STATS ── */
 function updateStats() {
-  const jp = projects.filter(p=>p.a==='jp').length;
-  const mg = projects.filter(p=>p.a==='mg').length;
-  document.getElementById('stat-jp').textContent = `José Pablo: ${jp}`;
-  document.getElementById('stat-mg').textContent = `Miguel: ${mg}`;
+  ANALYST_CODES.forEach(code => {
+    const stat = document.getElementById('stat-' + code);
+    if (stat) stat.textContent = `${ANAME[code]}: ${projects.filter(p => p.a === code).length}`;
+  });
 }
 
 /* ── KANBAN ── */
@@ -248,9 +333,10 @@ function renderKanban() {
             <button class="card-btn" title="Editar" onclick="editCard(${p.id})">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
+            ${currentUserProfile && currentUserProfile.role === "director" ? `
             <button class="card-btn del" title="Eliminar" onclick="delCard(${p.id})">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-            </button>
+            </button>` : ''}
           </div>
         </div>`;
       card.addEventListener('dragstart', () => { dragId = p.id; card.classList.add('dragging'); });
@@ -322,6 +408,10 @@ async function saveCard() {
 }
 async function delCard(id) {
   if (!confirm('¿Eliminar este proyecto?')) return;
+  if (!currentUserProfile || currentUserProfile.role !== "director") {
+    alert("No tienes permiso para borrar proyectos.");
+    return;
+  }
   const p = projects.find(x => x.id === id);
   if (!p) return;
   await deleteProject(p.docId);
@@ -331,9 +421,10 @@ async function delCard(id) {
 
 /* ── ANALYST TABLE ── */
 function renderAnalysts() {
-  ['jp','mg'].forEach(a => {
+  ANALYST_CODES.forEach(a => {
     const list = projects.filter(p => p.a===a);
     const tbody = document.getElementById('tbody-'+a);
+    if (!tbody) return;
     document.getElementById('cnt-'+a).textContent = list.length;
     document.getElementById('sub-'+a).textContent = list.length===1?'1 proyecto asignado':`${list.length} proyectos asignados`;
     document.getElementById('empty-'+a).style.display = list.length===0?'block':'none';
@@ -366,14 +457,71 @@ function renderAnalysts() {
           <button class="row-btn" title="Editar en modal" onclick="editCard(${p.id})">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
+          ${currentUserProfile && currentUserProfile.role === "director" ? `
           <button class="row-btn del" title="Eliminar" onclick="delCard(${p.id})">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-          </button>
+          </button>` : ''}
         </div></td>`;
       tbody.appendChild(tr);
     });
   });
+  renderConsolidatedAnalystTable();
   updateStats();
+}
+
+function consolidatedAnalystRows() {
+  return getAnalystFilteredProjects().map((p, index) => ({
+    row: index + 1,
+    id: p.id,
+    client: p.client || '',
+    country: p.country || '',
+    title: p.title || '',
+    n: p.n || '',
+    col: COL_LABEL[p.col] || p.col || '',
+    responsible: ANAME[p.a] || p.a || '',
+    need: p.need || '',
+    notes: p.notes || '',
+    assigned: p.assigned || '',
+    date: p.date || '',
+    director: p.director || ''
+  }));
+}
+
+function renderConsolidatedAnalystTable() {
+  const body = document.getElementById('av-sheet-body');
+  const empty = document.getElementById('av-sheet-empty');
+  const subtitle = document.getElementById('av-sheet-subtitle');
+  if (!body || !empty || !subtitle) return;
+
+  const rows = consolidatedAnalystRows();
+  const scopeLabel = avFilter === 'all' ? 'Todos los proyectos visibles en la vista actual.' : `Proyectos filtrados para ${ANAME[avFilter] || avFilter}.`;
+  subtitle.textContent = scopeLabel;
+  body.innerHTML = '';
+
+  if (!rows.length) {
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${row.row}</td>
+      <td class="mono">${esc(row.id)}</td>
+      <td>${esc(row.client)}</td>
+      <td>${esc(row.country)}</td>
+      <td>${esc(row.title)}</td>
+      <td class="mono">${esc(row.n)}</td>
+      <td>${esc(row.col)}</td>
+      <td>${esc(row.responsible)}</td>
+      <td>${esc(row.need)}</td>
+      <td class="notes">${esc(row.notes)}</td>
+      <td class="mono">${esc(fmtDate(row.assigned))}</td>
+      <td class="mono">${esc(fmtDate(row.date))}</td>
+      <td>${esc(row.director)}</td>`;
+    body.appendChild(tr);
+  });
 }
 
 async function ce(el) {
@@ -421,10 +569,51 @@ function downloadXlsx(analyst) {
   ws['!cols'] = [{wch:5},{wch:24},{wch:38},{wch:18},{wch:16},{wch:16},{wch:14},{wch:28},{wch:14},{wch:14}];
   ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
   XLSX.utils.book_append_sheet(wb, ws, name.substring(0,31));
-  XLSX.writeFile(wb, `proyectos_${analyst==='jp'?'jose_pablo':'miguel'}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `proyectos_${analyst}_${new Date().toISOString().slice(0,10)}.xlsx`);
   const btn = document.getElementById('dl-'+analyst);
   btn.classList.add('dl-flash');
   setTimeout(() => btn.classList.remove('dl-flash'), 500);
+}
+
+function exportConsolidatedXlsx() {
+  const rows = consolidatedAnalystRows();
+  if (!rows.length) {
+    alert('No hay proyectos para exportar en este filtro.');
+    return;
+  }
+
+  const filterLabel = avFilter === 'all' ? 'todos' : avFilter;
+  const title = avFilter === 'all'
+    ? 'Tabla consolidada — Todos los proyectos'
+    : `Tabla consolidada — ${ANAME[avFilter] || avFilter}`;
+  const today = new Date().toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const wb = XLSX.utils.book_new();
+  const wsData = [
+    [title,'','','','','','','','','','','','',''],
+    [`Generado: ${today}`,'','','','','','','','','','','','',''],
+    ['','','','','','','','','','','','','',''],
+    ['#','ID','Cliente','País','Proyecto','Muestra (n)','Estado','Responsable','Necesidad','Notas','Inicio','Final','Director-a'],
+    ...rows.map(row => [
+      row.row,
+      row.id,
+      row.client,
+      row.country,
+      row.title,
+      row.n,
+      row.col,
+      row.responsible,
+      row.need,
+      row.notes,
+      fmtDate(row.assigned),
+      fmtDate(row.date),
+      row.director
+    ])
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:5},{wch:8},{wch:22},{wch:16},{wch:34},{wch:14},{wch:16},{wch:16},{wch:14},{wch:28},{wch:14},{wch:14},{wch:18}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
+  XLSX.writeFile(wb, `proyectos_consolidado_${filterLabel}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
@@ -459,6 +648,7 @@ window.saveCard = saveCard;
 window.delCard = delCard;
 window.addRow = addRow;
 window.downloadXlsx = downloadXlsx;
+window.exportConsolidatedXlsx = exportConsolidatedXlsx;
 window.exportHTML = exportHTML;
 window.ce = ce;
 window.cse = cse;
@@ -493,8 +683,8 @@ function computeGanttRange(items){
 
 function setGanttFilter(type,btn){
   ganttFilter = type;
-  document.querySelectorAll('#gf-all,#gf-jp,#gf-mg,#gf-done,#gf-open').forEach(b=>b.className='btn-ghost');
-  btn.classList.add('active-'+(type==='all'?'all':type==='jp'?'jp':type==='mg'?'mg':'all'));
+  document.querySelectorAll('#gf-all,#gf-jp,#gf-mg,#gf-jr,#gf-br,#gf-done,#gf-open').forEach(b=>b.className='btn-ghost');
+  btn.classList.add('active-'+(type==='all' || type==='done' || type==='open' ? 'all' : type));
   renderGantt();
 }
 
@@ -528,6 +718,8 @@ function renderGantt(){
   const items = allItems.filter(p=>{
     if(ganttFilter==='jp')   return p.a==='jp';
     if(ganttFilter==='mg')   return p.a==='mg';
+    if(ganttFilter==='jr')   return p.a==='jr';
+    if(ganttFilter==='br')   return p.a==='br';
     if(ganttFilter==='done') return p.col==='done';
     if(ganttFilter==='open') return p.col!=='done';
     return true;
@@ -684,7 +876,26 @@ window.setGanttFilter = setGanttFilter;
 window.ganttScroll = ganttScroll;
 window.ganttGoToday = ganttGoToday;
 
-window.addEventListener('DOMContentLoaded', () => {
-  window.load().catch(err => console.error('Error loading projects from Firestore:', err));
-});
+loginBtn.addEventListener('click', handleLogin);
+logoutBtn.addEventListener('click', handleLogout);
 
+onAuthStateChanged(auth, async user => {
+  currentUser = user;
+
+  if (user) {
+    const profile = await ensureUserProfile(user);
+    currentUserProfile = profile;
+    const roleLabel = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
+    showAppScreen(user);
+    userInfo.textContent = `${profile.name || user.displayName || 'Usuario'} (${profile.email || user.email || ''}) - ${roleLabel}`;
+    try {
+      await load();
+    } catch (error) {
+      console.error('Error loading projects from Firestore:', error);
+      alert('No se pudieron cargar los proyectos.');
+    }
+    return;
+  }
+
+  showAuthScreen();
+});

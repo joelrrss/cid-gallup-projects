@@ -10,6 +10,19 @@
 </head>
 <body>
 
+<section id="auth-screen" class="auth-screen">
+  <div class="auth-card">
+    <h1>Proyectos</h1>
+    <p>Inicia sesión para entrar al tablero.</p>
+    <button id="loginBtn" class="btn-primary auth-login-btn">Iniciar sesión con Google</button>
+  </div>
+</section>
+
+<section id="app-screen" class="app-screen" hidden>
+<div class="auth-bar">
+  <span id="user-info" class="user-info"></span>
+  <button id="logoutBtn" class="btn-ghost">Cerrar sesión</button>
+</div>
 
 <div class="topbar">
   <div class="logo">Proyectos <span>/ Dashboard</span></div>
@@ -32,8 +45,10 @@
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Exportar
     </button>
-    <span class="stat-pill stat-jp" id="stat-jp">José Pablo: 0</span>
+    <span class="stat-pill stat-jp" id="stat-jp">Jose: 0</span>
     <span class="stat-pill stat-mg" id="stat-mg">Miguel: 0</span>
+    <span class="stat-pill stat-jr" id="stat-jr">Joel: 0</span>
+    <span class="stat-pill stat-br" id="stat-br">Bryan: 0</span>
   </div>
 </div>
 
@@ -41,8 +56,10 @@
 <div class="page active" id="page-kanban">
   <div class="kb-toolbar">
     <button class="btn-ghost active-all" onclick="setFilter('all',this)">Todos</button>
-    <button class="btn-ghost" onclick="setFilter('jp',this)">José Pablo</button>
+    <button class="btn-ghost" onclick="setFilter('jp',this)">Jose</button>
     <button class="btn-ghost" onclick="setFilter('mg',this)">Miguel</button>
+    <button class="btn-ghost" onclick="setFilter('jr',this)">Joel</button>
+    <button class="btn-ghost" onclick="setFilter('br',this)">Bryan</button>
     <div style="margin-left:auto">
       <button class="btn-primary" onclick="openModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -60,8 +77,10 @@
       <h2>Vista por analista</h2>
       <div style="display:flex;gap:4px;margin-left:6px">
         <button class="btn-ghost active-all" id="avf-all" onclick="setAvFilter('all',this)">Todos</button>
-        <button class="btn-ghost" id="avf-jp"  onclick="setAvFilter('jp',this)">José Pablo</button>
+        <button class="btn-ghost" id="avf-jp"  onclick="setAvFilter('jp',this)">Jose</button>
         <button class="btn-ghost" id="avf-mg"  onclick="setAvFilter('mg',this)">Miguel</button>
+        <button class="btn-ghost" id="avf-jr"  onclick="setAvFilter('jr',this)">Joel</button>
+        <button class="btn-ghost" id="avf-br"  onclick="setAvFilter('br',this)">Bryan</button>
       </div>
       <span style="margin-left:6px"></span>
       <button class="toggle-col" id="toggle-director" onclick="toggleDirector()" title="Mostrar/ocultar columna Director-a">
@@ -75,12 +94,12 @@
     </div>
     <div class="av-panels">
 
-      <!-- José Pablo -->
+      <!-- Jose -->
       <div class="analyst-panel" id="panel-jp">
         <div class="ap-header jp-h">
           <div class="ap-avatar jp-av">JP</div>
           <div>
-            <div class="ap-name">José Pablo</div>
+            <div class="ap-name">Jose</div>
             <div class="ap-sub" id="sub-jp">0 proyectos</div>
           </div>
           <span class="ap-count jp-ct" id="cnt-jp">0</span>
@@ -153,6 +172,117 @@
         </div>
       </div>
 
+      <!-- Joel -->
+      <div class="analyst-panel" id="panel-jr">
+        <div class="ap-header jr-h">
+          <div class="ap-avatar jr-av">JR</div>
+          <div>
+            <div class="ap-name">Joel</div>
+            <div class="ap-sub" id="sub-jr">0 proyectos</div>
+          </div>
+          <span class="ap-count jr-ct" id="cnt-jr">0</span>
+          <button class="ap-add" onclick="addRow('jr')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar fila
+          </button>
+          <button class="ap-dl jr-dl" id="dl-jr" onclick="downloadXlsx('jr')" title="Descargar Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Excel
+          </button>
+        </div>
+        <div class="ap-table-wrap">
+          <table class="ap-table">
+            <thead><tr>
+              <th class="tc">#</th>
+              <th>Cliente</th>
+              <th>Proyecto</th>
+              <th class="director-col col-hidden">Director-a</th>
+              <th>País</th>
+              <th>Estado</th>
+              <th>Necesidad</th>
+              <th>Notas</th>
+              <th class="inicio-col">Inicio</th>
+              <th>Final</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="tbody-jr"></tbody>
+          </table>
+          <div class="ap-empty" id="empty-jr">Sin proyectos asignados aún</div>
+        </div>
+      </div>
+
+      <!-- Bryan -->
+      <div class="analyst-panel" id="panel-br">
+        <div class="ap-header br-h">
+          <div class="ap-avatar br-av">BR</div>
+          <div>
+            <div class="ap-name">Bryan</div>
+            <div class="ap-sub" id="sub-br">0 proyectos</div>
+          </div>
+          <span class="ap-count br-ct" id="cnt-br">0</span>
+          <button class="ap-add" onclick="addRow('br')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar fila
+          </button>
+          <button class="ap-dl br-dl" id="dl-br" onclick="downloadXlsx('br')" title="Descargar Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Excel
+          </button>
+        </div>
+        <div class="ap-table-wrap">
+          <table class="ap-table">
+            <thead><tr>
+              <th class="tc">#</th>
+              <th>Cliente</th>
+              <th>Proyecto</th>
+              <th class="director-col col-hidden">Director-a</th>
+              <th>País</th>
+              <th>Estado</th>
+              <th>Necesidad</th>
+              <th>Notas</th>
+              <th class="inicio-col">Inicio</th>
+              <th>Final</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="tbody-br"></tbody>
+          </table>
+          <div class="ap-empty" id="empty-br">Sin proyectos asignados aún</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="av-sheet">
+      <div class="av-sheet-header">
+        <div>
+          <h3>Tabla consolidada</h3>
+          <p id="av-sheet-subtitle">Todos los proyectos visibles en la vista actual.</p>
+        </div>
+        <button class="btn-primary" onclick="exportConsolidatedXlsx()">Exportar Excel</button>
+      </div>
+      <div class="av-sheet-wrap">
+        <table class="av-sheet-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ID</th>
+              <th>Cliente</th>
+              <th>País</th>
+              <th>Proyecto</th>
+              <th>Muestra (n)</th>
+              <th>Estado</th>
+              <th>Responsable</th>
+              <th>Necesidad</th>
+              <th>Notas</th>
+              <th>Inicio</th>
+              <th>Final</th>
+              <th>Director-a</th>
+            </tr>
+          </thead>
+          <tbody id="av-sheet-body"></tbody>
+        </table>
+        <div class="av-sheet-empty" id="av-sheet-empty">No hay proyectos para este filtro.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -171,7 +301,7 @@
     <div class="field-row">
       <div class="field"><label>Muestra (n)</label><input id="f-n" type="text" placeholder="Ej: n = 400"></div>
       <div class="field"><label>Analista</label>
-        <select id="f-analyst"><option value="jp">José Pablo</option><option value="mg">Miguel</option></select>
+        <select id="f-analyst"><option value="jp">Jose</option><option value="mg">Miguel</option><option value="jr">Joel</option><option value="br">Bryan</option></select>
       </div>
     </div>
     <div class="field-row">
@@ -209,8 +339,10 @@
     <div class="gantt-toolbar">
       <div style="display:flex;gap:4px">
         <button class="btn-ghost active-all" id="gf-all"  onclick="setGanttFilter('all',this)">Todos</button>
-        <button class="btn-ghost" id="gf-jp"   onclick="setGanttFilter('jp',this)">José Pablo</button>
+        <button class="btn-ghost" id="gf-jp"   onclick="setGanttFilter('jp',this)">Jose</button>
         <button class="btn-ghost" id="gf-mg"   onclick="setGanttFilter('mg',this)">Miguel</button>
+        <button class="btn-ghost" id="gf-jr"   onclick="setGanttFilter('jr',this)">Joel</button>
+        <button class="btn-ghost" id="gf-br"   onclick="setGanttFilter('br',this)">Bryan</button>
         <button class="btn-ghost" id="gf-done" onclick="setGanttFilter('done',this)">Completados</button>
         <button class="btn-ghost" id="gf-open" onclick="setGanttFilter('open',this)">En curso</button>
       </div>
@@ -233,6 +365,8 @@
     </div>
   </div>
 </div>
+
+</section>
 
 
 <script type="module" src="app.js"></script>
