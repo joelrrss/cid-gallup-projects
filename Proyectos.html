@@ -400,6 +400,12 @@ const COLS = [
 
 let nextId = 100, curFilter = 'all', dragId = null, projects = [], showInicio = false, avFilter = 'all', showDirector = false;
 
+window.ANAME = ANAME;
+Object.defineProperty(window, 'projects', {
+  get: () => projects,
+  set: value => { projects = value; }
+});
+
 const DEFAULTS = [
   {id:1,  client:'KFC — México',             country:'México',          title:'Prueba de producto: 4 salsas sandwiches',  n:'',         col:'backlog',    a:'jp', isnew:false, need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
   {id:2,  client:'KFC — México',             country:'México',          title:'Prueba de producto: 5 salsas para dipear', n:'',         col:'backlog',    a:'jp', isnew:false, need:'Procesamiento', notes:'', date:'', assigned:'', director:''},
@@ -469,7 +475,7 @@ function projectPayload(project) {
 function refreshAllViews() {
   renderKanban();
   renderAnalysts();
-  renderGantt();
+  if (window.renderGantt) window.renderGantt();
   updateStats();
 }
 
@@ -534,6 +540,7 @@ function switchTab(name, btn) {
   document.getElementById('page-'+name).classList.add('active');
   btn.classList.add('active');
   if (name === 'analistas') renderAnalysts();
+  if (name === 'gantt' && window.ganttGoToday) window.ganttGoToday();
 }
 
 /* ── STATS ── */
@@ -819,6 +826,7 @@ window.downloadXlsx = downloadXlsx;
 window.exportHTML = exportHTML;
 window.ce = ce;
 window.cse = cse;
+window.load = load;
 
 
 </script>
@@ -905,7 +913,7 @@ function gDiff(a,b){ return Math.round((b-a)/864e5); }
 function gFmt(d){ return d.toLocaleDateString('es-CR',{day:'2-digit',month:'short'}); }
 
 function ganttProjects(){
-  return projects.filter(p => p.assigned && p.date && gDate(p.assigned) && gDate(p.date));
+  return (window.projects || []).filter(p => p.assigned && p.date && gDate(p.assigned) && gDate(p.date));
 }
 
 function computeGanttRange(items){
@@ -1041,7 +1049,7 @@ function renderGantt(){
     ll.className='g-row'+(isDone?' dim':'');
     ll.innerHTML=`<div class="g-label">
       <span class="gl-t" title="${p.title}">${p.title}</span>
-      <span class="gl-m">${p.client}${p.country?' · '+p.country:''} · ${ANAME[p.a]}</span>
+      <span class="gl-m">${p.client}${p.country?' · '+p.country:''} · ${window.ANAME[p.a]}</span>
     </div>`;
     gl.appendChild(ll);
 
@@ -1103,15 +1111,13 @@ function renderGantt(){
   wrap.onscroll=()=>{ gl.scrollTop=wrap.scrollTop; };
 }
 
-// Patch switchTab to init Gantt on first open
-const _origSwitch = switchTab;
-switchTab = function(name, btn){
-  _origSwitch(name, btn);
-  if(name==='gantt') ganttGoToday();
-};
+window.renderGantt = renderGantt;
+window.setGanttFilter = setGanttFilter;
+window.ganttScroll = ganttScroll;
+window.ganttGoToday = ganttGoToday;
 
 window.addEventListener('DOMContentLoaded', () => {
-  load().catch(err => console.error('Error loading projects from Firestore:', err));
+  window.load().catch(err => console.error('Error loading projects from Firestore:', err));
 });
 </script>
 </body>
