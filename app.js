@@ -37,6 +37,12 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const ANAME = {jp:'Jose', mg:'Miguel', jr:'Joel', br:'Bryan'};
 const ANALYST_CODES = ['jp', 'mg', 'jr', 'br'];
+const USER_ANALYST_MAP = {
+  'joel@email.com': 'jr',
+  'miguel@email.com': 'mg',
+  'bryan@email.com': 'br',
+  'jose@email.com': 'jp'
+};
 const COL_LABEL = {backlog:'Backlog', prog:'En progreso', rev:'Revisión', done:'Completado'};
 const COL_OPTS = ['backlog','prog','rev','done'];
 const NEED_CLS = {'Procesamiento':'n-proc','Análisis':'n-anal','Ambos':'n-amb','':'n-amb'};
@@ -47,7 +53,7 @@ const COLS = [
   {id:'done',    label:'Completado',  dot:'var(--dot-done)'},
 ];
 
-let nextId = 100, curFilter = 'all', dragId = null, projects = [], showInicio = false, avFilter = 'all', showDirector = false;
+let nextId = 100, curFilter = 'all', dragId = null, projects = [], showInicio = false, avFilter = 'all', showDirector = false, searchQuery = '';
 let currentUser = null;
 let currentUserProfile = null;
 
@@ -62,6 +68,13 @@ const appScreen = document.getElementById('app-screen');
 const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const userInfo = document.getElementById('user-info');
+const projectSearch = document.getElementById('project-search');
+
+function setSearchVisibility(activeTab) {
+  const searchWrap = document.querySelector('.topbar-search');
+  if (!searchWrap) return;
+  searchWrap.style.display = activeTab === 'kanban' ? 'none' : '';
+}
 
 function fmtDate(d) {
   if (!d) return '';
@@ -155,8 +168,23 @@ function showAppScreen(user) {
 }
 
 function getAnalystFilteredProjects() {
-  if (avFilter === 'all') return [...projects];
-  return projects.filter(p => p.a === avFilter);
+  const filtered = projects.filter(matchesSearch);
+  if (avFilter === 'all') return filtered;
+  return filtered.filter(p => p.a === avFilter);
+}
+
+function matchesSearch(project) {
+  const query = searchQuery.trim().toLowerCase();
+  if (!query) return true;
+  const searchableText = [
+    project.client,
+    project.country,
+    project.title,
+    project.notes,
+    project.director,
+    ANAME[project.a] || project.a || ''
+  ].join(' ').toLowerCase();
+  return searchableText.includes(query);
 }
 
 async function ensureUserProfile(user) {
@@ -275,6 +303,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   btn.classList.add('active');
+  setSearchVisibility(name);
   if (name === 'analistas') renderAnalysts();
   if (name === 'gantt' && window.ganttGoToday) window.ganttGoToday();
 }
@@ -299,7 +328,7 @@ function renderKanban() {
   const board = document.getElementById('board');
   board.innerHTML = '';
   COLS.forEach(col => {
-    const inCol = projects.filter(p => p.col === col.id);
+    const inCol = projects.filter(p => p.col === col.id && matchesSearch(p));
     const vis = inCol.filter(p => curFilter==='all' || p.a===curFilter);
     const el = document.createElement('div');
     el.className = `col col-${col.id}`;
@@ -371,10 +400,11 @@ function renderKanban() {
 let colPreset = 'backlog';
 function openModal(colId) {
   colPreset = colId || 'backlog';
+  const analystFromUser = USER_ANALYST_MAP[(currentUser?.email || '').toLowerCase()] || 'jp';
   document.getElementById('modal-title').textContent = 'Nuevo proyecto';
   document.getElementById('edit-id').value = '';
   ['f-client','f-country','f-title','f-n','f-notes','f-date','f-assigned','f-director'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-analyst').value = 'jp';
+  document.getElementById('f-analyst').value = analystFromUser;
   document.getElementById('f-col').value = colPreset;
   document.getElementById('f-need').value = '';
   document.getElementById('modal-bg').classList.add('open');
@@ -442,7 +472,7 @@ async function delCard(id) {
 /* ── ANALYST TABLE ── */
 function renderAnalysts() {
   ANALYST_CODES.forEach(a => {
-    const list = projects.filter(p => p.a===a);
+    const list = projects.filter(p => p.a===a && matchesSearch(p));
     const tbody = document.getElementById('tbody-'+a);
     if (!tbody) return;
     document.getElementById('cnt-'+a).textContent = list.length;
@@ -894,6 +924,11 @@ window.ganttGoToday = ganttGoToday;
 
 loginBtn.addEventListener('click', handleLogin);
 logoutBtn.addEventListener('click', handleLogout);
+projectSearch.addEventListener('input', e => {
+  searchQuery = e.target.value || '';
+  renderKanban();
+  renderAnalysts();
+});
 
 onAuthStateChanged(auth, async user => {
   currentUser = user;
@@ -903,6 +938,7 @@ onAuthStateChanged(auth, async user => {
     currentUserProfile = profile;
     const roleLabel = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
     showAppScreen(user);
+    setSearchVisibility('kanban');
     userInfo.textContent = `${profile.name || user.displayName || 'Usuario'} (${profile.email || user.email || ''}) - ${roleLabel}`;
     try {
       await load();
