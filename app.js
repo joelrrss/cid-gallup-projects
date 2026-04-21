@@ -187,6 +187,10 @@ function matchesSearch(project) {
   return searchableText.includes(query);
 }
 
+function getProjectByDocId(docId) {
+  return projects.find(project => project.docId === docId);
+}
+
 function sortProjectsByDate(list) {
   return [...list].sort((a, b) => {
     const aHasDate = !!a.date;
@@ -363,7 +367,7 @@ function renderKanban() {
     el.addEventListener('drop', async e => {
       e.preventDefault(); el.classList.remove('drag-over');
       if (dragId !== null) {
-        const p = projects.find(x => x.id === dragId);
+        const p = getProjectByDocId(dragId);
         if (p) {
           await updateProjectFields(p.docId, {col: col.id, isnew: false});
           await load();
@@ -397,16 +401,16 @@ function renderKanban() {
         <div class="card-footer" style="margin-top:8px">
           <span class="analyst-badge a-${p.a}">${ANAME[p.a]}</span>
           <div class="card-actions">
-            <button class="card-btn" title="Editar" onclick="editCard(${p.id})">
+            <button class="card-btn" title="Editar" onclick='editCard(${JSON.stringify(p.docId)})'>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
             ${currentUserProfile && currentUserProfile.role === "director" ? `
-            <button class="card-btn del" title="Eliminar" onclick="delCard(${p.id})">
+            <button class="card-btn del" title="Eliminar" onclick='delCard(${JSON.stringify(p.docId)})'>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
             </button>` : ''}
           </div>
         </div>`;
-      card.addEventListener('dragstart', () => { dragId = p.id; card.classList.add('dragging'); });
+      card.addEventListener('dragstart', () => { dragId = p.docId; card.classList.add('dragging'); });
       card.addEventListener('dragend', () => { dragId = null; card.classList.remove('dragging'); });
       body.appendChild(card);
     });
@@ -428,10 +432,10 @@ function openModal(colId) {
   document.getElementById('modal-bg').classList.add('open');
   setTimeout(() => document.getElementById('f-client').focus(), 50);
 }
-function editCard(id) {
-  const p = projects.find(x => x.id === id); if (!p) return;
+function editCard(docId) {
+  const p = getProjectByDocId(docId); if (!p) return;
   document.getElementById('modal-title').textContent = 'Editar proyecto';
-  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-id').value = docId;
   document.getElementById('f-client').value = p.client;
   document.getElementById('f-country').value = p.country||'';
   document.getElementById('f-title').value = p.title;
@@ -449,7 +453,7 @@ function editCard(id) {
 function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
 function closeBg(e) { if (e.target===document.getElementById('modal-bg')) closeModal(); }
 async function saveCard() {
-  const id      = document.getElementById('edit-id').value;
+  const docId   = document.getElementById('edit-id').value;
   const client  = document.getElementById('f-client').value.trim();
   const country = document.getElementById('f-country').value.trim();
   const title   = document.getElementById('f-title').value.trim();
@@ -462,8 +466,8 @@ async function saveCard() {
   const assigned= document.getElementById('f-assigned').value;
   const director= document.getElementById('f-director') ? document.getElementById('f-director').value.trim() : '';
   if (!client||!title) { document.getElementById('f-title').focus(); return; }
-  if (id) {
-    const p = projects.find(x => x.id===parseInt(id));
+  if (docId) {
+    const p = getProjectByDocId(docId);
     if (p) {
       await updateProject({...p, client,country,title,n,a:analyst,col,need,notes,date,assigned,director});
     }
@@ -474,13 +478,13 @@ async function saveCard() {
   closeModal();
   refreshAllViews();
 }
-async function delCard(id) {
+async function delCard(docId) {
   if (!confirm('¿Eliminar este proyecto?')) return;
   if (!currentUserProfile || currentUserProfile.role !== "director") {
     alert("No tienes permiso para borrar proyectos.");
     return;
   }
-  const p = projects.find(x => x.id === id);
+  const p = getProjectByDocId(docId);
   if (!p) return;
   await deleteProject(p.docId);
   await load();
@@ -501,34 +505,44 @@ function renderAnalysts() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><div class="ci ci-c num">${i+1}</div></td>
-        <td><div class="ci"><span class="editable" contenteditable="true" data-f="client" data-id="${p.id}" onblur="ce(this)">${esc(p.client)}</span></div></td>
-        <td><div class="ci"><span class="editable" contenteditable="true" data-f="title" data-id="${p.id}" onblur="ce(this)">${esc(p.title)}</span></div></td>
-        <td class="director-col col-hidden"><div class="ci"><span class="editable" contenteditable="true" data-f="director" data-id="${p.id}" onblur="ce(this)">${esc(p.director||'')}</span></div></td>
-        <td><div class="ci"><span class="editable" contenteditable="true" data-f="country" data-id="${p.id}" onblur="ce(this)">${esc(p.country||'')}</span></div></td>
+        <td><div class="ci"><span class="editable" contenteditable="true" data-f="client" data-docid="${p.docId}" onblur="ce(this)">${esc(p.client)}</span></div></td>
+        <td><div class="ci"><span class="editable" contenteditable="true" data-f="title" data-docid="${p.docId}" onblur="ce(this)">${esc(p.title)}</span></div></td>
+        <td class="director-col col-hidden"><div class="ci"><span class="editable" contenteditable="true" data-f="director" data-docid="${p.docId}" onblur="ce(this)">${esc(p.director||'')}</span></div></td>
+        <td><div class="ci"><span class="editable" contenteditable="true" data-f="country" data-docid="${p.docId}" onblur="ce(this)">${esc(p.country||'')}</span></div></td>
         <td class="sel-cell">
-          <select onchange="cse(${p.id},'col',this.value)">
+          <select onchange='cse(${JSON.stringify(p.docId)},"col",this.value)'>
             ${COL_OPTS.map(s=>`<option value="${s}"${p.col===s?' selected':''}>${COL_LABEL[s]}</option>`).join('')}
           </select>
         </td>
         <td class="sel-cell">
-          <select onchange="cse(${p.id},'need',this.value)">
+          <select onchange='cse(${JSON.stringify(p.docId)},"need",this.value)'>
             <option value=""${!p.need?' selected':''}>— Sin definir —</option>
             <option value="Procesamiento"${p.need==='Procesamiento'?' selected':''}>Procesamiento</option>
             <option value="Análisis"${p.need==='Análisis'?' selected':''}>Análisis</option>
             <option value="Ambos"${p.need==='Ambos'?' selected':''}>Ambos</option>
           </select>
         </td>
-        <td class="notes-cell"><div class="ci"><span class="editable" contenteditable="true" data-f="notes" data-id="${p.id}" onblur="ce(this)">${esc(p.notes||'')}</span></div></td>
-        <td class="date-cell inicio-col"><input type="date" value="${p.assigned||''}" title="Fecha de inicio" onchange="cse(${p.id},'assigned',this.value)"></td>
-        <td class="date-cell"><input type="date" value="${p.date||''}" title="Final" onchange="cse(${p.id},'date',this.value)"></td>
+        <td class="notes-cell"><div class="ci"><span class="editable" contenteditable="true" data-f="notes" data-docid="${p.docId}" onblur="ce(this)">${esc(p.notes||'')}</span></div></td>
+        <td class="date-cell inicio-col">
+          <div class="date-inline">
+            <input type="date" value="${p.assigned||''}" title="Fecha de inicio" onchange='cse(${JSON.stringify(p.docId)},"assigned",this.value)'>
+            ${p.assigned ? `<button type="button" class="date-clear-btn" title="Quitar fecha de inicio" onclick='clearDateField(this, ${JSON.stringify(p.docId)}, "assigned")'>×</button>` : ''}
+          </div>
+        </td>
+        <td class="date-cell">
+          <div class="date-inline">
+            <input type="date" value="${p.date||''}" title="Final" onchange='cse(${JSON.stringify(p.docId)},"date",this.value)'>
+            ${p.date ? `<button type="button" class="date-clear-btn" title="Quitar fecha final" onclick='clearDateField(this, ${JSON.stringify(p.docId)}, "date")'>×</button>` : ''}
+          </div>
+        </td>
         <td><div class="ci">${esc(p.createdByName || '')}</div></td>
         <td><div class="ci">${esc(p.updatedByName || '')}</div></td>
         <td><div class="row-acts">
-          <button class="row-btn" title="Editar en modal" onclick="editCard(${p.id})">
+          <button class="row-btn" title="Editar en modal" onclick='editCard(${JSON.stringify(p.docId)})'>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
           ${currentUserProfile && currentUserProfile.role === "director" ? `
-          <button class="row-btn del" title="Eliminar" onclick="delCard(${p.id})">
+          <button class="row-btn del" title="Eliminar" onclick='delCard(${JSON.stringify(p.docId)})'>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
           </button>` : ''}
         </div></td>`;
@@ -600,18 +614,24 @@ function renderConsolidatedAnalystTable() {
 }
 
 async function ce(el) {
-  const p = projects.find(x => x.id===parseInt(el.dataset.id));
+  const p = getProjectByDocId(el.dataset.docid);
   if (p) {
     await updateProjectFields(p.docId, {[el.dataset.f]: el.innerText.trim()});
     await load();
   }
 }
-async function cse(id, field, val) {
-  const p = projects.find(x => x.id===id);
+async function cse(docId, field, val) {
+  const p = getProjectByDocId(docId);
   if (p) {
     await updateProjectFields(p.docId, {[field]: val});
     await load();
   }
+}
+async function clearDateField(btn, docId, field) {
+  const wrap = btn.closest('.date-inline');
+  const input = wrap ? wrap.querySelector('input[type="date"]') : null;
+  if (input) input.value = '';
+  await cse(docId, field, '');
 }
 async function addRow(analyst) {
   const p = {id:nextId++,client:'',country:'',title:'Nuevo proyecto',n:'',col:'backlog',a:analyst,isnew:false,need:'',notes:'',date:'',assigned:'',director:''};
@@ -716,6 +736,7 @@ window.exportConsolidatedXlsx = exportConsolidatedXlsx;
 window.exportHTML = exportHTML;
 window.ce = ce;
 window.cse = cse;
+window.clearDateField = clearDateField;
 window.load = load;
 
 
