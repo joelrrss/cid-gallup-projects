@@ -45,7 +45,7 @@ const USER_ANALYST_MAP = {
 };
 const COL_LABEL = {backlog:'Backlog', prog:'En progreso', rev:'Revisión', done:'Completado'};
 const COL_OPTS = ['backlog','prog','rev','done'];
-const NEED_CLS = {'Procesamiento':'n-proc','Análisis':'n-anal','Ambos':'n-amb','':'n-amb'};
+const NEED_CLS = {'Procesamiento':'n-proc','Análisis':'n-anal','Ambos':'n-amb','Diseño':'n-amb','Cliente':'n-amb','':'n-amb'};
 const COLS = [
   {id:'backlog', label:'Backlog',     dot:'var(--dot-backlog)'},
   {id:'prog',    label:'En progreso', dot:'var(--dot-prog)'},
@@ -189,6 +189,15 @@ function matchesSearch(project) {
 
 function getProjectByDocId(docId) {
   return projects.find(project => project.docId === docId);
+}
+
+function parseSampleSize(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function formatSampleSize(value) {
+  const digits = parseSampleSize(value);
+  return digits ? `n = ${digits}` : '';
 }
 
 function sortProjectsByDate(list) {
@@ -439,7 +448,7 @@ function editCard(docId) {
   document.getElementById('f-client').value = p.client;
   document.getElementById('f-country').value = p.country||'';
   document.getElementById('f-title').value = p.title;
-  document.getElementById('f-n').value = p.n;
+  document.getElementById('f-n').value = parseSampleSize(p.n);
   document.getElementById('f-analyst').value = p.a;
   document.getElementById('f-col').value = p.col;
   document.getElementById('f-need').value = p.need||'';
@@ -457,7 +466,7 @@ async function saveCard() {
   const client  = document.getElementById('f-client').value.trim();
   const country = document.getElementById('f-country').value.trim();
   const title   = document.getElementById('f-title').value.trim();
-  const n       = document.getElementById('f-n').value.trim();
+  const n       = formatSampleSize(document.getElementById('f-n').value);
   const analyst = document.getElementById('f-analyst').value;
   const col     = document.getElementById('f-col').value;
   const need    = document.getElementById('f-need').value;
@@ -520,6 +529,8 @@ function renderAnalysts() {
             <option value="Procesamiento"${p.need==='Procesamiento'?' selected':''}>Procesamiento</option>
             <option value="Análisis"${p.need==='Análisis'?' selected':''}>Análisis</option>
             <option value="Ambos"${p.need==='Ambos'?' selected':''}>Ambos</option>
+            <option value="Diseño"${p.need==='Diseño'?' selected':''}>Diseño</option>
+            <option value="Cliente"${p.need==='Cliente'?' selected':''}>Cliente</option>
           </select>
         </td>
         <td class="notes-cell"><div class="ci"><span class="editable" contenteditable="true" data-f="notes" data-docid="${p.docId}" onblur="ce(this)">${esc(p.notes||'')}</span></div></td>

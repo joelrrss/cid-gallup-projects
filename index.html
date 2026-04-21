@@ -307,7 +307,7 @@
     <div class="field"><label>Proyecto</label><input id="f-title" type="text" placeholder="Nombre del estudio"></div>
     <div class="field"><label>Director-a</label><input id="f-director" type="text" placeholder="Ej: Ana García"></div>
     <div class="field-row">
-      <div class="field"><label>Muestra (n)</label><input id="f-n" type="text" placeholder="Ej: n = 400"></div>
+      <div class="field"><label>Muestra (n)</label><input id="f-n" type="text" inputmode="numeric" placeholder="Ej: 400" oninput="this.value=this.value.replace(/\D/g,'')"></div>
       <div class="field"><label>Analista</label>
         <select id="f-analyst"><option value="jp">Jose</option><option value="mg">Miguel</option><option value="jr">Joel</option><option value="br">Bryan</option></select>
       </div>
@@ -325,6 +325,8 @@
           <option value="Procesamiento">Procesamiento</option>
           <option value="Análisis">Análisis</option>
           <option value="Ambos">Ambos</option>
+          <option value="Diseño">Diseño</option>
+          <option value="Cliente">Cliente</option>
         </select>
       </div>
     </div>
