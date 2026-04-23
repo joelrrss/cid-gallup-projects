@@ -45,7 +45,7 @@ const USER_ANALYST_MAP = {
 };
 const COL_LABEL = {backlog:'Backlog', prog:'En progreso', rev:'Revisión', done:'Completado'};
 const COL_OPTS = ['backlog','prog','rev','done'];
-const NEED_CLS = {'Procesamiento':'n-proc','Análisis':'n-anal','Ambos':'n-amb','Diseño':'n-amb','Cliente':'n-amb','':'n-amb'};
+const NEED_CLS = {'Procesamiento':'n-proc','Análisis':'n-anal','Procesamiento + Análisis':'n-amb','Diseño':'n-amb','Cliente':'n-amb','Campo':'n-amb','Otro':'n-amb','Varios':'n-amb','':'n-amb'};
 const COLS = [
   {id:'backlog', label:'Backlog',     dot:'var(--dot-backlog)'},
   {id:'prog',    label:'En progreso', dot:'var(--dot-prog)'},
@@ -96,6 +96,10 @@ function userDocRef(uid) {
   return doc(db, 'users', uid);
 }
 
+function normalizeNeed(need) {
+  return need === 'Ambos' || need === 'Análisis + Procesamiento' ? 'Procesamiento + Análisis' : (need || '');
+}
+
 function normalizeProject(project, docId = '') {
   return {
     id: Number(project.id),
@@ -107,7 +111,7 @@ function normalizeProject(project, docId = '') {
     col: project.col || 'backlog',
     a: project.a || 'jp',
     isnew: !!project.isnew,
-    need: project.need || '',
+    need: normalizeNeed(project.need),
     notes: project.notes || '',
     date: project.date || '',
     assigned: project.assigned || '',
@@ -289,8 +293,12 @@ async function updateProject(project) {
 
 async function updateProjectFields(docId, fields) {
   if (!docId) throw new Error('Missing Firestore docId for project field update.');
+  const normalizedFields = {...fields};
+  if (Object.prototype.hasOwnProperty.call(normalizedFields, 'need')) {
+    normalizedFields.need = normalizeNeed(normalizedFields.need);
+  }
   await updateDoc(projectDocRef(docId), {
-    ...fields,
+    ...normalizedFields,
     ...updateAuditFields()
   });
 }
@@ -469,7 +477,7 @@ async function saveCard() {
   const n       = formatSampleSize(document.getElementById('f-n').value);
   const analyst = document.getElementById('f-analyst').value;
   const col     = document.getElementById('f-col').value;
-  const need    = document.getElementById('f-need').value;
+  const need    = normalizeNeed(document.getElementById('f-need').value);
   const notes   = document.getElementById('f-notes').value.trim();
   const date    = document.getElementById('f-date').value;
   const assigned= document.getElementById('f-assigned').value;
@@ -528,9 +536,12 @@ function renderAnalysts() {
             <option value=""${!p.need?' selected':''}>— Sin definir —</option>
             <option value="Procesamiento"${p.need==='Procesamiento'?' selected':''}>Procesamiento</option>
             <option value="Análisis"${p.need==='Análisis'?' selected':''}>Análisis</option>
-            <option value="Ambos"${p.need==='Ambos'?' selected':''}>Ambos</option>
+            <option value="Procesamiento + Análisis"${p.need==='Procesamiento + Análisis'?' selected':''}>Procesamiento + Análisis</option>
             <option value="Diseño"${p.need==='Diseño'?' selected':''}>Diseño</option>
             <option value="Cliente"${p.need==='Cliente'?' selected':''}>Cliente</option>
+            <option value="Campo"${p.need==='Campo'?' selected':''}>Campo</option>
+            <option value="Otro"${p.need==='Otro'?' selected':''}>Otro</option>
+            <option value="Varios"${p.need==='Varios'?' selected':''}>Varios</option>
           </select>
         </td>
         <td class="notes-cell"><div class="ci"><span class="editable" contenteditable="true" data-f="notes" data-docid="${p.docId}" onblur="ce(this)">${esc(p.notes||'')}</span></div></td>
